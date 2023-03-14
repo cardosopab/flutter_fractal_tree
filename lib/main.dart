@@ -1,109 +1,144 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Canvas',
       home: Scaffold(
-        body: Center(
-          child: Container(
-            width: 800,
-            height: 800,
-            color: Colors.black,
-            child: CustomPaint(painter: FaceOutlinePainter()),
-          ),
+        body: Stack(
+          children: [
+            Center(
+              child: Container(
+                width: 800,
+                height: 800,
+                color: Colors.black,
+                child: CustomPaint(painter: FractalTreePainter()),
+              ),
+            ),
+            Column(
+              children: [
+                SizedBox(
+                  height: 50,
+                  child: Slider(
+                    value: branchAngle,
+                    onChanged: (change) => setState(
+                      () => branchAngle = change,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 50,
+                  child: Slider(
+                    value: branchShrinkage,
+                    onChanged: (change) => setState(
+                      () => branchShrinkage = change,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 50,
+                  child: Slider(
+                    min: 0,
+                    max: 1000,
+                    value: branchLength,
+                    onChanged: (change) => setState(
+                      () => branchLength = change,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 50,
+                  child: Slider(
+                    min: 0,
+                    max: 15,
+                    value: maxLevel.toDouble(),
+                    onChanged: (change) => setState(
+                      () => maxLevel = change.floor(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class FaceOutlinePainter extends CustomPainter {
+double branchAngle = .67;
+double branchShrinkage = .67;
+double branchLength = 200;
+int maxLevel = 10;
+
+class FractalTreePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0
       ..color = Colors.white;
-// initial variables
-    double DA = .67;
-    double SHRINK = .67;
-    double A = 3.14159 * .5;
-    double L = 200;
-    int LEVEL = 0;
-    int MAXLEV = 3;
+
+    // initial variables
+    // double branchAngle = .67;
+    // double branchShrinkage = .67;
+    // double branchLength  = 200;
+    // int maxLevel = 10;
+    double initialAngle = 3.14159 * .5;
+    int branchLevel = 0;
     double y = size.width;
     double x = size.width * .5;
-// level arrays
-    List xList = [];
-    List yList = [];
-    final point = Path();
 
-// start branching
-    void branch() {
-      if (LEVEL < MAXLEV) {
-        // calculate next point
-        double dx = L * cos(A);
-        double dy = L * sin(A);
-        double nx = x + dx;
-        double ny = y - dy;
+    // start branching
+    void branch(double x, double y, double angle, double length, int level) {
+      if (level >= maxLevel) return;
 
-        //print("$LEVEL Branch x: $x, y: $y, nx: $nx, ny: $ny");
-        //draw branch
-        print("Drawing x:$x,y:$y, nx:$nx,ny:$ny, LEVEL: $LEVEL");
-        canvas.drawLine(Offset(x, y), Offset(nx, ny), paint);
+      // calculate next point
+      double dx = length * cos(angle);
+      double dy = length * sin(angle);
+      double nx = x + dx;
+      double ny = y - dy;
 
-        // save position
-        xList.add(x);
-        yList.add(y);
+      // draw branch
+      canvas.drawLine(Offset(x, y), Offset(nx, ny), paint);
 
-        // next branch
-        x = nx;
-        y = ny;
-        //print("list coor: ${xList[LEVEL]}, ${yList[LEVEL]}, new x: $x, new y: $y");
-        LEVEL++;
-        A = A + DA;
-        L = L * SHRINK;
-        //print("A: $A, L: $L,Level: $LEVEL");
-        if (LEVEL < MAXLEV) {
-          branch();
-        }
+      // calculate next level variables
+      double nextAngle1 = angle + branchAngle;
+      double nextLength1 = length * branchShrinkage;
+      double nextX1 = nx;
+      double nextY1 = ny;
 
-        //another branch
-        //print("another branch");
-        A = A - DA * 2;
+      double nextAngle2 = angle - branchAngle;
+      double nextLength2 = length * branchShrinkage;
+      double nextX2 = nx;
+      double nextY2 = ny;
 
-        if (LEVEL < MAXLEV) {
-          branch();
-        }
+      // branch out to the left
+      branch(nextX1, nextY1, nextAngle1, nextLength1, level + 1);
 
-        // pop back
-        //print("pop back");
-        A = A + DA;
-        L = L / SHRINK;
-        print("Level: $LEVEL");
-        LEVEL--;
-        x = xList[LEVEL];
-        y = yList[LEVEL];
-        // print("pop x: $x, y: $y, A: $A, L: $L, Level--: $LEVEL");
-        // for (int i = 0; i < xList.length; i++) {
-        //   print("xList: ${xList[i]}, yList: ${yList[i]}, $i");
-        // }
-        print("xList: ${xList[LEVEL]}, yList: ${yList[LEVEL]}");
-        return;
-      }
+      // pop back to the current state
+      canvas.drawLine(Offset(nx, ny), Offset(x, y), paint);
+
+      // branch out to the right
+      branch(nextX2, nextY2, nextAngle2, nextLength2, level + 1);
     }
 
-    branch();
+    // start the tree
+    branch(x, y, initialAngle, branchLength, branchLevel);
   }
 
   @override
